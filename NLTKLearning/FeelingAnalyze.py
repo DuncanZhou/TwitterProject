@@ -12,6 +12,7 @@ from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 # 引入语料
 from nltk.corpus import state_union
+# 实体识别
 from nltk.tokenize import PunktSentenceTokenizer
 # lemmatize词形还原
 from nltk.stem import WordNetLemmatizer
@@ -127,7 +128,7 @@ print(documents[1])
 
 all_words = []
 for w in movie_reviews.words():
-	# 该小写
+	# 改小写
 	all_words.append(w.lower())
 # 词频统计
 all_words = FreqDist(all_words)

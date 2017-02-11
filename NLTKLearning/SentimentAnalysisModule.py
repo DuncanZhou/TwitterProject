@@ -10,6 +10,7 @@ from sklearn.naive_bayes import MultinomialNB,BernoulliNB
 from sklearn.linear_model import LogisticRegression,SGDClassifier
 from sklearn.svm import LinearSVC
 from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 
 # 加载语料库
 short_pos = open("twitter-sentiment-dataset/positive.txt","r").read()
@@ -32,6 +33,7 @@ for p in short_pos.split("\n"):
         # 形容词对情感影响较大，所以选取形容词为特征
         for w in pos:
             if w[1][0] in allowed_types:
+                # 这一步可以再优化，词性还原，提取词根等等
                 all_words.append(w[0].lower())
     except Exception as e:
         print ("positive文档第%d行有编码问题:") % line
@@ -60,7 +62,7 @@ print("处理完成的文档已保存!")
 
 # 将所有词按照词频按降次排序
 all_words = nltk.FreqDist(all_words)
-# 选取前5000个词作为特征属性
+# 选取前5000个词作为特征属性,按照词频作为特征提取的依据
 word_features = list(all_words.keys())[:5000]
 # print (word_features)
 
@@ -70,9 +72,12 @@ pickle.dump(word_features,save_features)
 save_features.close()
 print("特征属性已保存!")
 
+
 # 对一段文档建立特征
 def Word2Features(document):
-    words = word_tokenize(document)
+    # document = document.decde('utf-8')
+    words = word_tokenize(document,language='english')
+    words = set([w for w in words if w not in stopwords.words("english")])
     features = {}
     for w in word_features:
         features[w] = (w in words)
