@@ -48,7 +48,7 @@ word_features5k_f = open(pickle_path + "/word_features5K.pickle","rb")
 word_features5k = pickle.load(word_features5k_f)
 word_features5k_f.close()
 
-twitter_stop_words = ["@","from","TO","to",":","!",".","#","https","RT","URL","in","&",";","re"]
+twitter_stop_words = ["@","from","TO","to",":","!",".","#","https","RT","URL","in","&",";","re","thank"]
 def Word2Features(document):
     words = word_tokenize(document)
     words = set([w for w in words if w not in (stopwords.words("english") and twitter_stop_words)])
