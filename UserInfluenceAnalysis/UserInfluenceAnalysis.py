@@ -3,10 +3,23 @@
 '''@author:duncan'''
 
 import MySQLdb
-hostname = "localhost"
-username = "root"
-password = "123"
-databasename = "TwitterUserInfo"
+import os
+import pickle
+import types
+import FollowProcess
+from numpy import *
+from scipy.sparse import csr_matrix
+
+# hostname = "localhost"
+# username = "root"
+# password = "123"
+# databasename = "TwitterUserInfo"
+
+project_folder_path = os.path.abspath(".." + os.path.sep + "..")
+follower_path = project_folder_path + "/follower/"
+follower_dic_path = project_folder_path + "/FollowerDic/"
+user_matrix_path = project_folder_path + "/UserPMatrix/"
+user_exit_matrix = [name.replace(".pickle","") for name in os.listdir(user_matrix_path)]
 
 class User:
     'twitter用户对象'
@@ -46,31 +59,26 @@ def Conn(hostname,username,password,databasename):
     return db
 
 # 获取用户基本信息列表
-def getUsersInfo():
-    db = Conn(hostname,username,password,databasename)
-    cursor = db.cursor()
+def getUsersInfo(cursor):
+    # db = Conn(hostname,username,password,databasename)
+    # cursor = db.cursor()
     cursor.execute("SELECT * FROM EnUserInfo")
     data = cursor.fetchall()
     user = []
     for d in data:
         twitter_user = User(d[0],d[1],d[2],d[3],d[6],d[7],d[8],d[9],d[11])
         user.append(twitter_user)
-    db.close()
     return user
 
 # 根据用户id查找用户信息
-def getUserInfo(id):
-    db = Conn(hostname,username,password,databasename)
-    cursor = db.cursor()
+def getUserInfo(id,cursor):
     cursor.execute("SELECT * FROM EnUserInfo where user_id = %s" % id)
     d = cursor.fetchall()
     twitter_user = User(d[0][0],d[0][1],d[0][2],d[0][3],d[0][6],d[0][7],d[0][8],d[0][9],d[0][11])
     return twitter_user
 
 # 得到当前结果集总数
-def getTotoalCount():
-    db = Conn(hostname,username,password,databasename)
-    cursor = db.cursor()
+def getTotoalCount(cursor):
     cursor.execute("SELECT COUNT(*) FROM EnUserInfo")
     counts = cursor.fetchall()
     return counts[0][0]
@@ -78,7 +86,6 @@ def getTotoalCount():
 # 用户相关操作
 # 过滤掉推文数小于10的推特用户，返回用户id列表
 def Filter(users):
-    idRs = []
     userRs = []
     for user in users:
         if user.getUserStatuses_count() > 10:
@@ -95,19 +102,172 @@ def getVerifiedUser(users):
     return results
 
 # 得到用户的粉丝列表
-def getFollowers(user_id):
-    pass
+def getFollowers(user_id,follower_dic):
+    follower = FollowProcess.getUserFollower(user_id,follower_dic)
+    if type(follower) == types.StringType:
+        followers = follower.split(" ")
+    else:
+        followers = follower
+    return followers
+
+def getFollowerMatrix(followerdic,users):
+    totalnumber = len(users)
+    usersid = set([user.id for user in users])
+    number = len(user_exit_matrix)
+    for user in users:
+        if user.screen_name not in user_exit_matrix:
+            userRow = []
+            followers = set(getFollowers(user.id,followerdic))
+            followers_in_users = followers & usersid
+            for u in users:
+                value = 0
+                if u.id in followers_in_users:
+                    value = u.getProportion()
+                    userRow.append(value)
+                else:
+                    userRow.append(value)
+            print user.screen_name
+            save_file = open(user_matrix_path + "%s.pickle" % user.screen_name,"wb")
+            pickle.dump(userRow,save_file)
+            save_file.close()
+            number += 1
+            print "已完成%d个用户,剩余%d" % (number,totalnumber - number)
+            # UsersMatrix.append(userRow)
+    # UsersMatrix = mat(UsersMatrix)
+    # 将UsersMatrix持久化
+    # save_file = open(project_folder_path + "UserMatrix.pickle","wb")
+    # pickle.dump(UsersMatrix,save_file)
+    # save_file.close()
+    # print "矩阵保存完毕"
+    return number
+
+def getuMatrix(path,users):
+    uMatrix = []
+    count = 0
+    totalnumber = len(users)
+    for user in users:
+        try:
+            open_file = open(path + user.screen_name + ".pickle","rb")
+            usermatrix = pickle.load(open_file)
+            open_file.close()
+            uMatrix.append(usermatrix)
+            print "load %s" % user.screen_name
+            count += 1
+            print "%d TO Process" % (totalnumber - count)
+        except Exception as e:
+            print user.screen_name
+    print "共计读入%d个用户" % count
+    return mat(uMatrix)
 
 # 基于PageRank算法影响力排序
-def PageRank(users):
-    pass
+def PageRank(uMatrix,fMatrix,d,PRMatrix,threshold,iterationN):
+    NewPRMatrix = OldPRMatrix = PRMatrix
+    iteration = 0
+    rowN = NewPRMatrix.shape[0]
+    while True:
+        NewPRMatrix = fMatrix.T + d * uMatrix * OldPRMatrix
+        flag = True
+        iteration += 1
+        if iteration == iterationN:
+            break
+        for i in range(rowN):
+            if math.fabs(NewPRMatrix[i,0] - OldPRMatrix[i,0]) > threshold:
+                flag = False
+                break
+        if flag == True:
+            break
+        OldPRMatrix = NewPRMatrix
+    print "迭代次数%d" % iteration
+    return mat(NewPRMatrix.toarray())
+
+def CalucateUIPR(uMatrix,users):
+    # 用户的screenname：IPR
+    uiPR = {}
+    i = 0
+    for user in users:
+        screenname = user
+        uiPR[screenname] = uMatrix[i,0]
+        i += 1
+    # 按照影响力降序排列
+    uiPR = sorted(uiPR.items(),key = lambda dic:dic[1],reverse = True)
+    return uiPR[:100]
+# def setUsersFollower(followerdic,cursor):
+#     users = getUsersInfo(cursor)
+#     i = 0
+#     N = getTotoalCount(cursor)
+#     for user in users:
+#         follower = getFollowers(user.id,followerdic)
+#         if len(follower) == 0:
+#             continue
+#         follower = follower.replace(" ","#")
+#         sql = "UPDATE EnUserInfo SET followers = %s where user_id = %s" % (follower,user.id)
+#         i += 1
+#         print "已处理%d条，还剩%d条待处理" % (i,N - i)
+#         cursor.execute(sql)
 
 if __name__ == '__main__':
-    # print "原数据集数目:%d" % getTotoalCount()
-    users = getUsersInfo()
-    for user in users:
-        print user
+    # conn = MySQLdb.connect(
+    #     host='localhost',
+    #     port = 3306,
+    #     user='root',
+    #     passwd='123',
+    #     db ='TwitterUserInfo',
+    # )
+    # cursor = conn.cursor()
+    # open_file = open(follower_dic_path + "followerdic.pickle","rb")
+    # follower_dic = pickle.load(open_file)
+    # open_file.close()
+    # users = getUsersInfo(cursor)
+    # brown = getUserInfo("10012342",cursor)
+    # userRow = []
+    # usersid = set([user.id for user in users])
+    # followers = set(getFollowers(brown.id,follower_dic))
+    # followers_in_users = followers & usersid
+    # print brown.screen_name
+    # for u in users:
+    #     value = 0
+    #     if u.id in followers_in_users:
+    #         value = u.getProportion()
+    #         userRow.append(value)
+    #     else:
+    #         userRow.append(value)
+    # save_file = open(user_matrix_path + "%s.pickle" % brown.screen_name,"wb")
+    # pickle.dump(userRow,save_file)
+    # save_file.close()
+    # open_file = open(project_folder_path + "/UserPMatrix/dagbrown.pickle","rb")
+    # brown_matrix = pickle.load(open_file)
+    # open_file.close()
+    # print mat(brown_matrix).shape
 
+    open_file = open(project_folder_path + "/users.pickle","rb")
+    users = pickle.load(open_file)
+    open_file.close()
+
+    # uMatrix = getuMatrix(user_matrix_path,users)
+    # save_file = open(user_matrix_path + "uMatrix.pickle","wb")
+    # pickle.dump(uMatrix,save_file)
+    # save_file.close()
+    open_file = open(user_matrix_path + "uMatrix.pickle")
+    uMatrix = csr_matrix(pickle.load(open_file))
+    open_file.close()
+    print "uMatrix 已保存"
+    fMatrix = mat([(1 - 0.85) / len(users) for i in range(len(users))]).T
+    initPRMatrix = mat([1 for i in range(len(users))]).T
+    print CalucateUIPR(PageRank(uMatrix,fMatrix,0.85,initPRMatrix,0.01,1000),users)
+    # usermatrix,number = getFollowerMatrix(follower_dic,users)
+
+    # save_file = open(project_folder_path + "/users.pickle","wb")
+    # pickle.dump(users,save_file)
+    # save_file.close()
+    # print "原数据集数目:%d" % getTotoalCount()
+    # setUsersFollower(follower_dic,cursor)
+    # for user in users:
+    #     # print getFollowers(user.id,follower_dic)
+    #     print user.id
+    #     break
+    # print getFollowers("100000075",follower_dic)
+
+    # print number
     # # 过滤后的用户id结果集
     # filterResult = Filter(users)
     # for rs in filterResult:
@@ -116,5 +276,8 @@ if __name__ == '__main__':
     # # 获取认证过的用户
     # # verifiedUserResult = getVerifiedUser(filterResult)
     # # print "认证过的用户数目为%d" % len(verifiedUserResult)
+    # cursor.close()
+    # conn.commit()
+    # conn.close()
 
 
