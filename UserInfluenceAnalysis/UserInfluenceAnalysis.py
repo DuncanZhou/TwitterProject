@@ -8,6 +8,7 @@ import pickle
 import types
 import FollowProcess
 from numpy import *
+import time
 from scipy.sparse import csr_matrix
 
 # hostname = "localhost"
@@ -120,15 +121,14 @@ def getFollowerMatrix(followerdic,users):
             followers = set(getFollowers(user.id,followerdic))
             followers_in_users = followers & usersid
             for u in users:
-                value = 0
-                if u.id in followers_in_users:
-                    value = u.getProportion()
-                    userRow.append(value)
+                if u.id in followers_in_users or u.id == user.id:
+                    userRow.append(u.getProportion())
                 else:
-                    userRow.append(value)
+                    userRow.append(0)
             print user.screen_name
+            user_matrix = csr_matrix(userRow)
             save_file = open(user_matrix_path + "%s.pickle" % user.screen_name,"wb")
-            pickle.dump(userRow,save_file)
+            pickle.dump(user_matrix,save_file)
             save_file.close()
             number += 1
             print "已完成%d个用户,剩余%d" % (number,totalnumber - number)
@@ -159,13 +159,62 @@ def getuMatrix(path,users):
     print "共计读入%d个用户" % count
     return mat(uMatrix)
 
-# 基于PageRank算法影响力排序
+# 生成用户id和粉丝/关注人数比的字典
+def generateProportion(users):
+    prodic = {}
+    for user in users:
+        prodic[user.id] = user.getProportion()
+    return prodic
+
+# 离线查找用户信息
+def getUserInfoOffline(users,id):
+    for user in users:
+        if user.id == id:
+            return user
+
+# 不使用矩阵的方式计算PR，计算过程比矩阵慢很多
+def PageRank(followerdic,users,threshold,iterationN,uPR,d,proportiondic):
+    N = len(users)
+    iteration = 0
+    usersid = set([user.id for user in users])
+    while True:
+        flag = True
+        iteration += 1
+        print "iteration %d" % iteration
+        olduPR = uPR
+        # 更新每个用户的PR
+        userid = 0
+        for user in users:
+            userPR = 0
+            followers = set(getFollowers(user.id,followerdic))
+            followers_in_users = followers & usersid
+            print len(followers_in_users)
+            for u in followers_in_users:
+                userPR += (getUserInfoOffline(users,u).getProportion() * uPR[u])
+            uPR[user.id] = userPR * d + (1 - d) / N
+            userid += 1
+            print "done %d users" % userid
+        # 判断是否还要迭代
+        for ukey in users:
+            if math.fabs(uPR[ukey.id] - olduPR[ukey.id]) > threshold:
+                flag = False
+                break
+        if flag == True:
+            break
+        # 超出设定迭代次数
+        if iteration == iterationN:
+            break
+    # 选出影响力前100的用户
+    uiPR = sorted(uPR.items(),key = lambda dic:dic[1],reverse = True)
+    return uiPR[:100]
+
+# 利用稀疏矩阵基于PageRank算法影响力排序
 def PageRank(uMatrix,fMatrix,d,PRMatrix,threshold,iterationN):
     NewPRMatrix = OldPRMatrix = PRMatrix
     iteration = 0
     rowN = NewPRMatrix.shape[0]
     while True:
-        NewPRMatrix = fMatrix.T + d * uMatrix * OldPRMatrix
+        NewPRMatrix = fMatrix + d * uMatrix * OldPRMatrix
         flag = True
         iteration += 1
         if iteration == iterationN:
@@ -191,6 +240,7 @@ def CalucateUIPR(uMatrix,users):
     # 按照影响力降序排列
     uiPR = sorted(uiPR.items(),key = lambda dic:dic[1],reverse = True)
     return uiPR[:100]
+
 # def setUsersFollower(followerdic,cursor):
 #     users = getUsersInfo(cursor)
 #     i = 0
@@ -205,6 +255,27 @@ def CalucateUIPR(uMatrix,users):
 #         print "已处理%d条，还剩%d条待处理" % (i,N - i)
 #         cursor.execute(sql)
 
+
+# update follower_dic
+def updateFollower_dic(follower_dic_path,toAddFollower_path,users):
+    open_file = open(follower_dic_path,"rb")
+    followers_dic = pickle.load(open_file)
+    open_file.close()
+    famous_users = map(lambda username: username.replace(".txt",""),os.listdir(toAddFollower_path))
+    for user in famous_users:
+        # followers = ReadFollowers(toAddFollower_path,user)
+        user_id = getUserID(user,users)
+        print user_id
+        followers_dic[user_id] = user
+    save_file = open(follower_dic_path + "followerdic.pickle","wb")
+    pickle.dump(followers_dic,save_file)
+    save_file.close()
+
+def getUserID(username,users):
+    for user in users:
+        if user.screen_name == username:
+            return user.id
+
 if __name__ == '__main__':
     # conn = MySQLdb.connect(
     #     host='localhost',
@@ -214,46 +285,56 @@ if __name__ == '__main__':
     #     db ='TwitterUserInfo',
     # )
     # cursor = conn.cursor()
-    # open_file = open(follower_dic_path + "followerdic.pickle","rb")
-    # follower_dic = pickle.load(open_file)
-    # open_file.close()
-    # users = getUsersInfo(cursor)
-    # brown = getUserInfo("10012342",cursor)
-    # userRow = []
-    # usersid = set([user.id for user in users])
-    # followers = set(getFollowers(brown.id,follower_dic))
-    # followers_in_users = followers & usersid
-    # print brown.screen_name
-    # for u in users:
-    #     value = 0
-    #     if u.id in followers_in_users:
-    #         value = u.getProportion()
-    #         userRow.append(value)
-    #     else:
-    #         userRow.append(value)
-    # save_file = open(user_matrix_path + "%s.pickle" % brown.screen_name,"wb")
-    # pickle.dump(userRow,save_file)
-    # save_file.close()
-    # open_file = open(project_folder_path + "/UserPMatrix/dagbrown.pickle","rb")
-    # brown_matrix = pickle.load(open_file)
-    # open_file.close()
-    # print mat(brown_matrix).shape
+    open_file = open(follower_dic_path + "followerdic.pickle","rb")
+    follower_dic = pickle.load(open_file)
+    open_file.close()
 
+    # 测试followers字典
+    # print follower_dic["30009639"]
+    # print getFollowers("30009639",follower_dic)
+    # 将用户持久化
+    # users = getUsersInfo(cursor)
+    # save_file = open(project_folder_path + "/users.pickle","wb")
+    # pickle.dump(users,save_file)
+    # save_file.close()
+
+    # 载入所有用户
     open_file = open(project_folder_path + "/users.pickle","rb")
     users = pickle.load(open_file)
     open_file.close()
+    # updateFollower_dic("/home/duncan/TwitterProjectFolder/FollowerDic/followerdic.pickle","/home/duncan/TwitterProjectFolder/follower/famous_users_followers/",users)
 
-    # uMatrix = getuMatrix(user_matrix_path,users)
+    # 生成每个用户的follower矩阵
+    t = time.time()
+    getFollowerMatrix(follower_dic,users)
+    print "用时%fs" % (time.time() - t)
+
+
+    # 载入用户粉丝/关注比例字典
+    # prodic = generateProportion(users)
+    # uPR = {}
+    # for user in users:
+    #     uPR[user.id] = 1
+    # 直接计算PageRank
+    # print PageRank(follower_dic,users,0.01,100,uPR,0.85,prodic)
+
+    # 用户matrix载入
+    # uMatrix = csr_matrix(getuMatrix(user_matrix_path,users))
     # save_file = open(user_matrix_path + "uMatrix.pickle","wb")
     # pickle.dump(uMatrix,save_file)
     # save_file.close()
-    open_file = open(user_matrix_path + "uMatrix.pickle")
-    uMatrix = csr_matrix(pickle.load(open_file))
-    open_file.close()
-    print "uMatrix 已保存"
-    fMatrix = mat([(1 - 0.85) / len(users) for i in range(len(users))]).T
-    initPRMatrix = mat([1 for i in range(len(users))]).T
-    print CalucateUIPR(PageRank(uMatrix,fMatrix,0.85,initPRMatrix,0.01,1000),users)
+
+    # 文件太大不适合序列化
+    # open_file = open(user_matrix_path + "uMatrix.pickle")
+    # uMatrix = csr_matrix(pickle.load(open_file))
+    # open_file.close()
+    # print "uMatrix 已保存"
+
+    # 矩阵方式计算PageRank
+    # fMatrix = mat([(1 - 0.85) / len(users) for i in range(len(users))]).T
+    # initPRMatrix = mat([1 for i in range(len(users))]).T
+    # print CalucateUIPR(PageRank(uMatrix,fMatrix,0.85,initPRMatrix,0.01,1000),users)
+
     # usermatrix,number = getFollowerMatrix(follower_dic,users)
 
     # save_file = open(project_folder_path + "/users.pickle","wb")
