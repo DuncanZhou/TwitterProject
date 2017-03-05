@@ -113,23 +113,22 @@ if __name__ == "__main__":
     user_influ = {}
 
     for user in users:
-        if user.id[:2] == "10":
-            tweet = tweets1
-        elif user.id[:2] == "11":
+        if user.id[:2] == "11":
             tweet = tweets2
         elif user.id[:2] == "12":
             tweet = tweets3
+        else:
+            tweet = tweets1
         if tweet.find({"user_id":long(user.id)}).count() > 0:
             userid.append(user.id)
-
     count = 0
     for id in userid:
-        if id[:2] == "10":
-            result = tweets1.find({"user_id":long(id)})
-        elif id[:2] == "11":
+        if id[:2] == "11":
             result = tweets2.find({"user_id":long(id)})
         elif id[:2] == "12":
             result = tweets3.find({"user_id":long(id)})
+        else:
+            result = tweets1.find({"user_id":long(id)})
         user = getUserInfo(id,cursor)
         OTN,RTN,ORTN,RTrtN,OFavN,RTFavN = CalucateParameters(result)
         user_influ[id] = CalucateTwitterInfluence(CalucateActive(user,OTN,RTN),CalucateInfluence(ORTN,OFavN,RTrtN,RTFavN))
