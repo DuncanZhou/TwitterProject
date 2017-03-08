@@ -171,15 +171,16 @@ def CalculateTFIDF(usercandidate,followers_file_path):
     for follower in followers_tweets:
         print "check follower %s, %d left" % (follower,userNumber - count)
         with open(followers_file_path + follower) as f:
-            lines = f.readlines()
+            # lines = f.readlines()
+            text = f.read()
             for candidate in usercandidate:
-                for line in lines:
-                    try:
-                        if line.find(candidate[0]):
-                            tfidf[candidate[0]] += 1
-                            break
-                    except Exception as e:
-                        continue
+                # for line in lines:
+                try:
+                    if text.find(candidate[0]):
+                        tfidf[candidate[0]] += 1
+                        break
+                except Exception as e:
+                    continue
         count += 1
     for key in tfidf.keys():
         tfidf[key] = math.log(tfidf[key] * 1.0 / userNumber) * usercandidate[key]
@@ -242,14 +243,45 @@ def CalculateTextRank(ucMatrix,threshold,dampFactor,idf,InitTRMatrix):
     print "the number of iteration is %d " % iteration
     return TRMatrix
 
-if __name__ == "__main__":
-    target_user_name = "realDonaldTrump"
+def CalucateUCTR(usercandidate,ucTRMatrix):
+    ucTR = {}
+    i = 0
+    for user in usercandidate:
+        candidate = user[0]
+        TR = ucTRMatrix[i,0]
+        i += 1
+        ucTR[candidate] = TR
+    # 按照ucTR的键值排序
+    ucTR = sorted(ucTR.items(),key = lambda dic:dic[1],reverse = True)
+    print ucTR[:10]
+    return ucTR
+
+def GenerateTargetUserInterest(Target_name):
+    # 初始矩阵
+    TR = []
+    for i in range(100):
+        TR.append(1)
+    InitTRMatrix = mat(TR)
+
+    target_user_name = Target_name
     steponetime = time.time()
     target_user_candidate = getUserTop100Interest(target_tweets_path,target_user_name)
     steptwotime = time.time()
-    print "first step uses %f seconds" % (steptwotime - steponetime)
-    CalculateTFIDF(target_user_candidate,followers_file_path)
-    print "seconde step uses %f seconds" % (time.time() - steptwotime)
+    print "第一步计算用户兴趣候选集,用时 %f s" % (steptwotime - steponetime)
+    print "正在计算TFIDF,大约需要几分钟"
+    idf = CalculateTFIDF(target_user_candidate,followers_file_path)
+    print "第二步计算用户TFIDF特征,用时 %f s" % (time.time() - steptwotime)
+    print "开始TextRank迭代计算用户兴趣候选集排序,计算中"
+    trstarttime = time.time()
+    uiMatrix = CalculateWeight(target_user_candidate)
+    ucTRMatrix = CalculateTextRank(uiMatrix,0.0001,0.85,idf,InitTRMatrix)
+    CalucateUCTR(target_user_candidate,ucTRMatrix)
+    trendtime = time.time()
+    print "迭代过程耗时 %f s" % (trendtime - trstarttime)
+
+if __name__ == "__main__":
+    GenerateTargetUserInterest("realDonaldTrump")
+
 
 
 
