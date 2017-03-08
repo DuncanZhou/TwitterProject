@@ -12,7 +12,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from numpy import *
 
-BeatFactor = 300000
+BeatFactor = 3000000
 
 project_path = os.path.abspath("..")
 project_folder_path = os.path.abspath(".." + os.path.sep + "..")
@@ -131,7 +131,7 @@ def Generation(pos):
 
 '''
 步骤3：候选集排序
-单用户使用TF词频排序,并生成前100兴趣候选集
+单用户使用TF词频排序,并生成前NS兴趣候选集
 '''
 def CalculateTF(usercandidate):
     vac = set(usercandidate)
@@ -141,9 +141,9 @@ def CalculateTF(usercandidate):
     # 按照键值排序
     vacdic = sorted(vacdic.items(),key = lambda dic:dic[1],reverse = True)
     # 输出前100个兴趣候选集
-    return vacdic[:100]
+    return vacdic[:50]
 
-def getUserTop100Interest(path,screen_name):
+def getUserTopInterest(path,screen_name):
     # global usercandidate
     usercandidate = []
     with open(path + screen_name,"r") as f:
@@ -166,24 +166,33 @@ def getUserTop100Interest(path,screen_name):
 def CalculateTFIDF(usercandidate,followers_file_path):
     followers_tweets = os.listdir(followers_file_path)
     userNumber = len(followers_tweets)
-    tfidf = {}
-    count = 0
+    print "该用户有%d个粉丝,现在开始计算" % (userNumber - 1)
+    tfidf = [1 for i in range(50)]
+    # for i in range(100):
+    #     tfidf.append(1)
+    # count = 0
     for follower in followers_tweets:
-        print "check follower %s, %d left" % (follower,userNumber - count)
+        # print "check follower %s, %d left" % (follower,userNumber - count)
         with open(followers_file_path + follower) as f:
             # lines = f.readlines()
             text = f.read()
+            id = 0
             for candidate in usercandidate:
                 # for line in lines:
                 try:
                     if text.find(candidate[0]):
-                        tfidf[candidate[0]] += 1
+                        tfidf[id] += 1
                         break
                 except Exception as e:
-                    continue
-        count += 1
-    for key in tfidf.keys():
-        tfidf[key] = math.log(tfidf[key] * 1.0 / userNumber) * usercandidate[key]
+                    pass
+                id += 1
+        # count += 1
+    id = 0
+    for uc in usercandidate:
+        value = math.log(userNumber * 1.0 / tfidf[id]) * uc[1]
+        tfidf[id] = value
+        id += 1
+    # tfidf = map(lambda value:math.log(value * 1.0 / userNumber) * usercandidate[key],tfidf)
     return tfidf
 
 '''
@@ -219,13 +228,14 @@ def CalculateWeight(usercandidate):
     return newmatrix
 
 def CalculateTextRank(ucMatrix,threshold,dampFactor,idf,InitTRMatrix):
-    TFIDFMatrix = mat(idf) * (1 - dampFactor) / BeatFactor
+    TFIDFMatrix = mat(idf).T * (1 - dampFactor) / BeatFactor
+    # print TFIDFMatrix
     TRMatrix = InitTRMatrix.T
     oldMatrix = TRMatrix
     # iteration
     iteration = 0
     while True:
-        newMatrix = TRMatrix = ucMatrix * TRMatrix + TFIDFMatrix.T
+        newMatrix = TRMatrix = ucMatrix * TRMatrix + TFIDFMatrix
         # newMatrix = TRMatrix = ucMatrix * TRMatrix
 
         flag = True
@@ -256,16 +266,17 @@ def CalucateUCTR(usercandidate,ucTRMatrix):
     print ucTR[:10]
     return ucTR
 
+def ProcessBio(user_name):
+    pass
+
 def GenerateTargetUserInterest(Target_name):
-    # 初始矩阵
-    TR = []
-    for i in range(100):
-        TR.append(1)
+    # 初始矩阵设为权值都为1的矩阵
+    TR = [1 for i in range(50)]
     InitTRMatrix = mat(TR)
 
     target_user_name = Target_name
     steponetime = time.time()
-    target_user_candidate = getUserTop100Interest(target_tweets_path,target_user_name)
+    target_user_candidate = getUserTopInterest(target_tweets_path,target_user_name)
     steptwotime = time.time()
     print "第一步计算用户兴趣候选集,用时 %f s" % (steptwotime - steponetime)
     print "正在计算TFIDF,大约需要几分钟"
@@ -280,7 +291,7 @@ def GenerateTargetUserInterest(Target_name):
     print "迭代过程耗时 %f s" % (trendtime - trstarttime)
 
 if __name__ == "__main__":
-    GenerateTargetUserInterest("realDonaldTrump")
+    GenerateTargetUserInterest("taylorswift13")
 
 
 
