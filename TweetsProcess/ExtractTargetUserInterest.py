@@ -28,10 +28,7 @@ def PreProcess(text):
     # open_file.close()
 
     # clear @/#/http
-    toClear = re.findall(r'[@|#][\d|\w|_]+|http[\w|:|.|/|\d]+',text)
-    # print toClear
-    for c in toClear:
-        text = text.replace(c," ")
+    text = re.sub(r'[@|#][\d|\w|_]+|http[\w|:|.|/|\d]+',"",text)
     # print text
     wordslist = []
     if text == "" or text == None:
@@ -170,9 +167,9 @@ def CalculateTFIDF(usercandidate,followers_file_path):
     tfidf = [1 for i in range(50)]
     # for i in range(100):
     #     tfidf.append(1)
-    # count = 0
+    count = 0
     for follower in followers_tweets:
-        # print "check follower %s, %d left" % (follower,userNumber - count)
+        print "check follower %s, %d left" % (follower,userNumber - count)
         with open(followers_file_path + follower) as f:
             # lines = f.readlines()
             text = f.read()
@@ -180,13 +177,14 @@ def CalculateTFIDF(usercandidate,followers_file_path):
             for candidate in usercandidate:
                 # for line in lines:
                 try:
-                    if text.find(candidate[0]):
+                    # if text.find(candidate[0]):
+                    if re.search(" " + candidate[0] + "[^\w]?",text) != None:
                         tfidf[id] += 1
                         break
                 except Exception as e:
                     pass
                 id += 1
-        # count += 1
+        count += 1
     id = 0
     for uc in usercandidate:
         value = math.log(userNumber * 1.0 / tfidf[id]) * uc[1]
