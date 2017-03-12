@@ -14,7 +14,16 @@ from sklearn.naive_bayes import MultinomialNB
 '''
 project_path = os.path.abspath("..")
 piclke_path = project_path + "/DocumentClassify/pickles/"
-data_set_path = "/DocumentClassify/dataset/bbc"
+'''
+BCC分类：business/entertainment/politics/sport/technology
+CNN分类：agriculture/economy/education/entertainment/military/politics/religion/sports/technology
+
+DataSet1 是 CNN + BCC新闻数据集(分类融合起来)
+DataSet2 是 BCC新闻数据集
+DataSet3 是 CNN新闻数据集
+DataSet4 是 CNN + BCC新闻数据集(CNN填补BCC没有的分类)
+'''
+data_set_path = "/DocumentClassify/DataSet2"
 training_set_path = project_path + data_set_path
 # print training_set_path
 training_set = datasets.load_files(training_set_path)
