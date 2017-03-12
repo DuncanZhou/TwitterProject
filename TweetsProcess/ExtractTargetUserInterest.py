@@ -5,6 +5,8 @@
 import os
 import re
 import nltk
+from pytagcloud import create_tag_image,make_tags
+import webbrowser
 import math
 import time
 from nltk.tokenize import word_tokenize
@@ -262,7 +264,8 @@ def CalucateUCTR(usercandidate,ucTRMatrix):
     # 按照ucTR的键值排序
     ucTR = sorted(ucTR.items(),key = lambda dic:dic[1],reverse = True)
     print ucTR[:10]
-    return ucTR
+    ucTR10,ucTR50 = ucTR[:10],ucTR[:50]
+    return ucTR10,ucTR50
 
 def ProcessBio(user_name):
     pass
@@ -284,12 +287,22 @@ def GenerateTargetUserInterest(Target_name):
     trstarttime = time.time()
     uiMatrix = CalculateWeight(target_user_candidate)
     ucTRMatrix = CalculateTextRank(uiMatrix,0.0001,0.85,idf,InitTRMatrix)
-    CalucateUCTR(target_user_candidate,ucTRMatrix)
+    Interest10,Interest50 = CalucateUCTR(target_user_candidate,ucTRMatrix)
     trendtime = time.time()
     print "迭代过程耗时 %f s" % (trendtime - trstarttime)
+    return Interest10,Interest50
+
+# 测试标签云库，将用户兴趣集可视化
+def GenerateTagCloud(InterestSorted,name):
+    tags = make_tags(InterestSorted, maxsize=80)
+    # 保存在当前目录下名为cloud
+    create_tag_image(tags, name + 'tags.png', size=(900, 600), fontname='Lobster')
+    webbrowser.open('cloud_large.png') # see results
 
 if __name__ == "__main__":
-    GenerateTargetUserInterest("taylorswift13")
+    name = "taylorswift13"
+    Interest10,Interest50 = GenerateTargetUserInterest(name)
+    GenerateTagCloud(Interest50,name)
 
 
 
