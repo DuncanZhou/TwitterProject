@@ -9,11 +9,11 @@ project_folder_path = os.path.abspath(".." + os.path.sep + "..")
 project_path = os.path.abspath("..")
 data_folder_path = "/TweetsSamples/"
 famouse_tweets_folder_path = project_folder_path + "/TweetsSamples/famous_users_tweets/"
-piclke_path = project_path + "/DocumentClassify/pickles/"
-tf_transformer_path = piclke_path + "tf_transformer.picle"
-categories_path = piclke_path + "categories.pickle"
-MultinomialNB_classifier_path = piclke_path + "MultinomialNB_classifier.pickle"
-count_vect_path = piclke_path + "count_vect.pickle"
+pickle_path = project_path + "/DocumentClassify/pickles/"
+tf_transformer_path = pickle_path + "tf_transformer.picle"
+categories_path = pickle_path + "categories.pickle"
+MultinomialNB_classifier_path = pickle_path + "MultinomialNB_classifier.pickle"
+count_vect_path = pickle_path + "count_vect.pickle"
 
 def Classify(text):
     '''
@@ -66,11 +66,23 @@ def getTweets(file_path):
 
 # 测试分类器效果
 def test():
+    # 读取20个名人screenname/name/标注分类
+    open_file = open(pickle_path + "20famous.pickle")
+    famous = pickle.load(open_file)
+    open_file.close()
     famous_screen_name = os.listdir(famouse_tweets_folder_path)
     # print famous_screen_name
+    correct  = 0
     for name in famous_screen_name:
         filename = name
         file_path = famouse_tweets_folder_path + filename
         text = getTweets(file_path)
-        print "%s => %s" % (filename,Classify(text))
+        category = Classify(text)
+        for user in famous:
+            if name == user[0] and user[2] == category:
+                correct += 1
+                break
+        print "%s => %s" % (name,category)
+    print "以标注的20个名人为准准确率为:"
+    print (correct * 1.0 / 20)
 test()

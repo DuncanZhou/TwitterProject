@@ -23,7 +23,7 @@ DataSet2 是 BCC新闻数据集
 DataSet3 是 CNN新闻数据集
 DataSet4 是 CNN + BCC新闻数据集(CNN填补BCC没有的分类)
 '''
-data_set_path = "/DocumentClassify/DataSet2"
+data_set_path = "/DocumentClassify/DataSet4"
 training_set_path = project_path + data_set_path
 # print training_set_path
 training_set = datasets.load_files(training_set_path)
