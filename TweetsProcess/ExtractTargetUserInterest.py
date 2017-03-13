@@ -171,6 +171,8 @@ def CalculateTFIDF(usercandidate,followers_file_path):
     #     tfidf.append(1)
     count = 0
     for follower in followers_tweets:
+        if os.path.isfile(followers_file_path + follower) == False:
+            continue
         print "check follower %s, %d left" % (follower,userNumber - count)
         with open(followers_file_path + follower) as f:
             # lines = f.readlines()
@@ -294,14 +296,18 @@ def GenerateTargetUserInterest(Target_name):
 
 # 测试标签云库，将用户兴趣集可视化
 def GenerateTagCloud(InterestSorted,name):
-    tags = make_tags(InterestSorted, maxsize=80)
-    # 保存在当前目录下名为cloud
-    create_tag_image(tags, name + 'tags.png', size=(900, 600), fontname='Lobster')
-    webbrowser.open('cloud_large.png') # see results
+    newdic = []
+    for d in InterestSorted:
+        newdic.append((d[0],d[1] * 10000))
+    tags = make_tags(newdic, minsize = 5,maxsize=30)
+    # 保存在当前目录下
+    create_tag_image(tags, name + 'tags.png', size=(700, 600), fontname='Nobile')
+    webbrowser.open(name + 'tags.png') # see results
 
 if __name__ == "__main__":
     name = "taylorswift13"
     Interest10,Interest50 = GenerateTargetUserInterest(name)
+    print Interest10
     GenerateTagCloud(Interest50,name)
 
 
