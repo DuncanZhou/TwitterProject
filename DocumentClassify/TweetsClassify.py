@@ -64,6 +64,22 @@ def getTweets(file_path):
             text += line.replace("\n","")
     return text
 
+
+
+def Accuracy(resdic,users):
+    '''
+    :param resdic: 格式: {screen_name:category}
+    :param users:  格式: {name,screen_name,category}
+    :return:准确率
+    '''
+    correct = 0
+    for dickey in resdic.keys():
+        for user in users:
+            if dickey == user.screen_name and resdic[dickey] == user.category:
+                correct += 1
+                break
+    return (correct * 1.0 / len(resdic))
+
 # 测试分类器效果
 def test():
     # 读取20个名人screenname/name/标注分类
@@ -85,4 +101,3 @@ def test():
         print "%s => %s" % (name,category)
     print "以标注的20个名人为准准确率为:"
     print (correct * 1.0 / 20)
-test()

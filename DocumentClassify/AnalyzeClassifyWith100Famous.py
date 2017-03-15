@@ -4,6 +4,7 @@
 import MySQLdb
 import xlrd
 import TweetsClassify
+import TweetsClassifyTraining
 import os
 
 project_folder_path = os.path.abspath(".." + os.path.sep + "..")
@@ -92,10 +93,18 @@ if __name__ == '__main__':
     users = getUsers(cursor)
     # for user in users:
     #     print user.category
+    #------------------------------------------------选择训练集训练--------------------------------
+    data_set_path = "/DocumentClassify/DataSet1"
+    TweetsClassifyTraining.Training(data_set_path)
+
+    #------------------------------------------------进行测试--------------------------------
     resdic =  GetClassifyResults(Famous_tweets_path)
-    # 计算正确率
+
+    #------------------------------------------------计算分类精度--------------------------------
     accuracy = TweetsClassify.Accuracy(resdic,users)
     print "共%d个名人,分类准确率为%f" % (len(resdic),accuracy)
+
+    # 关闭数据库连接
     cursor.close()
     conn.commit()
     conn.close()
