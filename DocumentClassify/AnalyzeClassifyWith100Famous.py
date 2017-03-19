@@ -2,17 +2,23 @@
 #-*-coding:utf-8-*-
 '''@author:duncan'''
 import MySQLdb
+
+import re
 import xlrd
 import TweetsClassify
 import TweetsClassifyTraining
 import os
+from nltk.corpus import stopwords
 
 project_folder_path = os.path.abspath(".." + os.path.sep + "..")
 Famous_tweets_path = project_folder_path + "/Famous_Tweets"
+TestTweets_path = project_folder_path + "/TwitterProject/DocumentClassify/TestTweets/"
 # hostname = "localhost"
 # username = "root"
 # password = "123"
 # databasename = "TwitterUserInfo"
+
+
 class Famous:
     def __init__(self,name,screen_name,category):
         self.name = name
@@ -21,7 +27,6 @@ class Famous:
 
     def __str__(self):
         return "姓名: %s   screen_name: %s   类别: %s" % (self.name,self.screen_name,self.category)
-
 # 获取用户
 def getUsers(cursor):
     users = []
@@ -60,6 +65,7 @@ def InsertIntodb(cursor,users):
     print "Insert Successfully"
 
 def GetClassifyResults(tweets_path):
+    twitter_stop_words = ["@","from","TO","to",":","!",".","#","https","RT","URL","in","&",";","re","''","?","thank","thanks","do","be","today","yesterday","tomorrow","night","tonight","day","year","last","oh","yeah"]
     '''
     :param tweets_path: 推文所在路径
     :return: 返回字典 格式:{screen_name:category}
@@ -67,10 +73,16 @@ def GetClassifyResults(tweets_path):
     resdic = {}
     snames = os.listdir(tweets_path)
     for name in snames:
+        text = ""
         with open(tweets_path + "/" + name,"r") as f:
-            text = f.read()
+            lines = f.readlines()
+            for line in lines:
+                # 移除回复性推文,看结果是否能提升
+                if re.match(r"""^["|.]?@[\w|_]+""",line) == None:
+                    text += line
+            # text = f.read()
             res = TweetsClassify.Classify(text)
-            print "%s ==> %s" % (name,res)
+            # print "%s ==> %s" % (name,res)
             resdic[name] = res
     return resdic
 
@@ -94,15 +106,56 @@ if __name__ == '__main__':
     # for user in users:
     #     print user.category
     #------------------------------------------------选择训练集训练--------------------------------
-    data_set_path = "/DocumentClassify/DataSet1"
-    TweetsClassifyTraining.Training(data_set_path)
+    '''
+    BCC分类：business/entertainment/politics/sport/technology
+    CNN分类：agriculture/economy/education/entertainment/military/politics/religion/sports/technology
 
-    #------------------------------------------------进行测试--------------------------------
-    resdic =  GetClassifyResults(Famous_tweets_path)
+    DataSet1 是 CNN + BCC新闻数据集(分类融合起来)
+    DataSet2 是 BCC新闻数据集
+    DataSet3 是 CNN新闻数据集
+    DataSet4 是 CNN + BCC新闻数据集(CNN填补BCC没有的分类)
+    DataSet5 是 CNN新闻 + BCC新闻 + 推文数据集(融合)
+    '''
+    # 用名人推文来测试
+    # for i in range(1,6):
+    #     data_set_path = "/DocumentClassify/DataSet%s" % (str(i))
+    #     TweetsClassifyTraining.Training(data_set_path)
+    #
+    #     #------------------------------------------------进行测试--------------------------------
+    #     resdic =  GetClassifyResults(Famous_tweets_path)
+    #     # 将resdic分类结果写入文件
+    #     with open("/home/duncan/DataSet%d-Results" % i,"w") as f:
+    #         for key in resdic.keys():
+    #             for user in users:
+    #                 if user.screen_name == key:
+    #                     f.write(user.name + "  ==>  " + "分类器分类结果: " + resdic[key] + "  ==>  " + "正确结果: " + user.category)
+    #                     f.write("\n")
+    #                     break
+    #     #------------------------------------------------计算分类精度--------------------------------
+    #     accuracy = TweetsClassify.Accuracy(resdic,users)
+    #     print "使用DataSet%d分类结果:共%d个名人,分类准确率为%f" % (i,len(resdic),accuracy)
+    #     print "-------------------------------------------------------------------------------------------"
 
-    #------------------------------------------------计算分类精度--------------------------------
-    accuracy = TweetsClassify.Accuracy(resdic,users)
-    print "共%d个名人,分类准确率为%f" % (len(resdic),accuracy)
+    # 用和新闻推文来测试分类精度
+    for i in range(1,6):
+        data_set_path = "/DocumentClassify/DataSet%s" % (str(i))
+        TweetsClassifyTraining.Training(data_set_path)
+
+        #------------------------------------------------进行测试--------------------------------
+        filenames = os.listdir(TestTweets_path)
+        count = 0
+        filesid = 0
+        for dir in filenames:
+            files = os.listdir(TestTweets_path + dir)
+            for file in files:
+                filesid += 1
+                with open(TestTweets_path + dir + "/" + file,"r") as f:
+                    text = f.read()
+                res = TweetsClassify.Classify(text)
+                if res == dir:
+                    count += 1
+        print "accuracy is %f" % (count * 1.0 / filesid)
+        print "-------------------------------------------------------------------------------------------"
 
     # 关闭数据库连接
     cursor.close()
