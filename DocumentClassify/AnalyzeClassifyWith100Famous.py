@@ -105,20 +105,21 @@ def GetClassifyResultsByTF(tweets_path):
             wordlist = [word for word in words if word.isalpha() and word not in (twitter_stop_words and stopwords.words("english"))]
 
             # 以下步骤统计词频
-            wordset = set(wordlist)
-            worddic = {}
-            for word in wordset:
-                worddic[word] = wordlist.count(word)
-            worddic = sorted(worddic.items(),key=lambda dic:dic[1],reverse=True)
-            lastwords = [word[0] for word in worddic[:4000]]
+            # wordset = set(wordlist)
+            # worddic = {}
+            # for word in wordset:
+            #     worddic[word] = wordlist.count(word)
+            # worddic = sorted(worddic.items(),key=lambda dic:dic[1],reverse=True)
+            # lastwords = [word[0] for word in worddic[:4000]]
 
             # 合并成文本
-            text = " ".join(lastwords)
+            # text = " ".join(lastwords)
+            text = " ".join(wordlist)
             firsttime = time.time()
-            print "处理推文花费 %f s" % (firsttime - starttime)
+            # print "处理推文花费 %f s" % (firsttime - starttime)
             res = TweetsClassify.Classify(text)
             secondtime = time.time()
-            print "分类推文花费 %f s" % (secondtime - firsttime)
+            # print "分类推文花费 %f s" % (secondtime - firsttime)
             # print "%s ==> %s" % (name,res)
             resdic[name] = res
     return resdic
@@ -148,36 +149,57 @@ if __name__ == '__main__':
     CNN分类：agriculture/economy/education/entertainment/military/politics/religion/sports/technology
 
     DataSet1 是 CNN + BCC新闻数据集(分类融合起来)
-    DataSet2 是 BCC新闻数据集
+    DataSet2 是 BCC新闻数据集(加了维基词条的一些文章)
     DataSet3 是 CNN新闻数据集
     DataSet4 是 CNN + BCC新闻数据集(CNN填补BCC没有的分类)
     DataSet5 是 CNN新闻 + BCC新闻 + 推文数据集(融合)
     '''
     # 用名人推文来测试
-    for i in range(1,6):
-        data_set_path = "/DocumentClassify/DataSet%s" % (str(i))
-        TweetsClassifyTraining.Training(data_set_path)
+    # for i in range(1,6):
+    #     data_set_path = "/DocumentClassify/DataSet%s" % (str(i))
+    #     TweetsClassifyTraining.Training(data_set_path)
+    #
+    #     #------------------------------------------------进行测试--------------------------------
+    #     # 以去除回复性推文作为输入
+    #     # resdic =  GetClassifyResultsByAllTweets(Famous_tweets_path)
+    #
+    #     # 以词频单词作为输入
+    #     resdic =  GetClassifyResultsByTF(Famous_tweets_path)
+    #
+    #     # 将resdic分类结果写入文件
+    #     with open("/home/duncan/DataSet%d-Results" % i,"w") as f:
+    #         for key in resdic.keys():
+    #             for user in users:
+    #                 if user.screen_name == key:
+    #                     f.write(user.name + "  ==>  " + "分类器分类结果: " + resdic[key] + "  ==>  " + "正确结果: " + user.category)
+    #                     f.write("\n")
+    #                     break
+    #     #------------------------------------------------计算分类精度--------------------------------
+    #     accuracy = TweetsClassify.Accuracy(resdic,users)
+    #     print "使用DataSet%d分类结果:共%d个名人,分类准确率为%f" % (i,len(resdic),accuracy)
+    #     print "-------------------------------------------------------------------------------------------"
+    data_set_path = "/DocumentClassify/DataSet2"
+    TweetsClassifyTraining.Training(data_set_path)
 
-        #------------------------------------------------进行测试--------------------------------
-        # 以去除回复性推文作为输入
-        # resdic =  GetClassifyResultsByAllTweets(Famous_tweets_path)
+    #------------------------------------------------进行测试--------------------------------
+    # 以去除回复性推文作为输入
+    # resdic =  GetClassifyResultsByAllTweets(Famous_tweets_path)
 
-        # 以词频单词作为输入
-        resdic =  GetClassifyResultsByTF(Famous_tweets_path)
+    # 以词频单词作为输入
+    resdic =  GetClassifyResultsByTF(Famous_tweets_path)
 
-        # 将resdic分类结果写入文件
-        with open("/home/duncan/DataSet%d-Results" % i,"w") as f:
-            for key in resdic.keys():
-                for user in users:
-                    if user.screen_name == key:
-                        f.write(user.name + "  ==>  " + "分类器分类结果: " + resdic[key] + "  ==>  " + "正确结果: " + user.category)
-                        f.write("\n")
-                        break
-        #------------------------------------------------计算分类精度--------------------------------
-        accuracy = TweetsClassify.Accuracy(resdic,users)
-        print "使用DataSet%d分类结果:共%d个名人,分类准确率为%f" % (i,len(resdic),accuracy)
-        print "-------------------------------------------------------------------------------------------"
-
+    # 将resdic分类结果写入文件
+    with open("/home/duncan/DataSet%d-Results" % 2,"w") as f:
+        for key in resdic.keys():
+            for user in users:
+                if user.screen_name == key:
+                    f.write(user.name + "  ==>  " + "分类器分类结果: " + resdic[key] + "  ==>  " + "正确结果: " + user.category)
+                    f.write("\n")
+                    break
+    #------------------------------------------------计算分类精度--------------------------------
+    accuracy = TweetsClassify.Accuracy(resdic,users)
+    print "使用DataSet%d分类结果:共%d个名人,分类准确率为%f" % (2,len(resdic),accuracy)
+    print "-------------------------------------------------------------------------------------------"
     # 用和新闻推文来测试分类精度
     # for i in range(1,6):
     #     data_set_path = "/DocumentClassify/DataSet%s" % (str(i))
