@@ -74,11 +74,12 @@ if __name__ == '__main__':
         urls =  Category_urls[category]
         page_urls = []
         for url in urls:
-            res = GetPageText(url)
+            res = GetPageUrls(url)
             if res != None:
                 page_urls += res
         # 每个分类对应的结果页面的链接
         Page_Text_urls[category] = page_urls
+        print "获取%s分类的结果页面链接" % category
     print "结果页面链接生成成功"
     # 将结果页面的链接存储
     with open("BBC_Page_urls","w") as f:
