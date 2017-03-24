@@ -92,12 +92,16 @@ def GetClassifyResultsByAllTweets(tweets_path):
 # 使用推文前4000词频的词作为输入
 def GetClassifyResultsByTF(tweets_path):
     twitter_stop_words = ["@","from","TO","to",":","!",".","#","https","RT","URL","in","&",";","re","''","?","thank","thanks","do","be","today","yesterday","tomorrow","night","tonight","day","year","last","oh","yeah"]
-    resdic = {}
+
+    # 这里的代码需要重构
+    MultinomialNB_resdic = {}
+    LinearSVM_resdic = {}
+    BernoulliNB_resdic = {}
     snames = os.listdir(tweets_path)
     for name in snames:
         text = ""
         with open(tweets_path + "/" + name,"r") as f:
-            starttime = time.time()
+
             text = f.read()
             re.sub(r"""\n@.+"""," ",text)
             words = word_tokenize(text.decode("utf-8"))
@@ -115,14 +119,18 @@ def GetClassifyResultsByTF(tweets_path):
             # 合并成文本
             # text = " ".join(lastwords)
             text = " ".join(wordlist)
-            firsttime = time.time()
+
             # print "处理推文花费 %f s" % (firsttime - starttime)
-            res = TweetsClassify.Classify(text)
-            secondtime = time.time()
+            MultinomialNB_res = TweetsClassify.Classify(text,"MultinomialNB")
+            LinearSVM_res = TweetsClassify.Classify(text,"LinearSVM")
+            BernoulliNB_res = TweetsClassify.Classify(text,"BernoulliNB")
+
             # print "分类推文花费 %f s" % (secondtime - firsttime)
             # print "%s ==> %s" % (name,res)
-            resdic[name] = res
-    return resdic
+            MultinomialNB_resdic[name] = MultinomialNB_res
+            LinearSVM_resdic[name] = LinearSVM_res
+            BernoulliNB_resdic[name] = BernoulliNB_res
+    return MultinomialNB_resdic,LinearSVM_resdic,BernoulliNB_resdic
 
 if __name__ == '__main__':
     conn = MySQLdb.connect(
@@ -149,7 +157,7 @@ if __name__ == '__main__':
     CNN分类：agriculture/economy/education/entertainment/military/politics/religion/sports/technology
 
     DataSet1 是 CNN + BCC新闻数据集(分类融合起来)
-    DataSet2 是 BCC新闻数据集(加了维基词条的一些文章)
+    DataSet2 是 BCC新闻数据集(加了维基词条的一些文章,加了CNN的一些文本,结果反而有提升)
     DataSet3 是 CNN新闻数据集
     DataSet4 是 CNN + BCC新闻数据集(CNN填补BCC没有的分类)
     DataSet5 是 CNN新闻 + BCC新闻 + 推文数据集(融合)
@@ -186,19 +194,27 @@ if __name__ == '__main__':
     # resdic =  GetClassifyResultsByAllTweets(Famous_tweets_path)
 
     # 以词频单词作为输入
-    resdic =  GetClassifyResultsByTF(Famous_tweets_path)
+    MultinomialNB_resdic,LinearSVM_resdic,BernoulliNB_resdic = GetClassifyResultsByTF(Famous_tweets_path)
 
     # 将resdic分类结果写入文件
-    with open("/home/duncan/DataSet%d-Results" % 2,"w") as f:
-        for key in resdic.keys():
-            for user in users:
-                if user.screen_name == key:
-                    f.write(user.name + "  ==>  " + "分类器分类结果: " + resdic[key] + "  ==>  " + "正确结果: " + user.category)
-                    f.write("\n")
-                    break
+    # with open("/home/duncan/DataSet%d-Results" % 2,"w") as f:
+    #     for key in resdic.keys():
+    #         for user in users:
+    #             if user.screen_name == key:
+    #                 f.write(user.name + "  ==>  " + "分类器分类结果: " + resdic[key] + "  ==>  " + "正确结果: " + user.category)
+    #                 f.write("\n")
+    #                 break
     #------------------------------------------------计算分类精度--------------------------------
-    accuracy = TweetsClassify.Accuracy(resdic,users)
-    print "使用DataSet%d分类结果:共%d个名人,分类准确率为%f" % (2,len(resdic),accuracy)
+    accuracy = TweetsClassify.Accuracy(MultinomialNB_resdic,users)
+    print "使用DataSet%d分类结果,多项式贝叶斯分类器:共%d个名人,分类准确率为%f" % (2,len(MultinomialNB_resdic),accuracy)
+    print "-------------------------------------------------------------------------------------------"
+
+    accuracy = TweetsClassify.Accuracy(BernoulliNB_resdic,users)
+    print "使用DataSet%d分类结果,伯努力贝叶斯分类器:共%d个名人,分类准确率为%f" % (2,len(BernoulliNB_resdic),accuracy)
+    print "-------------------------------------------------------------------------------------------"
+
+    accuracy = TweetsClassify.Accuracy(LinearSVM_resdic,users)
+    print "使用DataSet%d分类结果,线性SVM分类器:共%d个名人,分类准确率为%f" % (2,len(LinearSVM_resdic),accuracy)
     print "-------------------------------------------------------------------------------------------"
     # 用和新闻推文来测试分类精度
     # for i in range(1,6):
