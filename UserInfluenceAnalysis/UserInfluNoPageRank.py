@@ -55,7 +55,7 @@ def getUsersInfo(cursor):
     return user
 
 def getUserInfo(id,cursor):
-    cursor.execute("SELECT * FROM PreStandardUsers where userid = %s and category is NULL" % id)
+    cursor.execute("SELECT * FROM PreStandardUsers where userid = %s" % id)
     d = cursor.fetchall()
     twitter_user = TwitterUsers.User(d[0][3],d[0][1],d[0][0],d[0][4],d[0][7],d[0][9],d[0][8],d[0][10],d[0][14])
     return twitter_user
@@ -66,6 +66,15 @@ def getUserTweets(userid,Search):
     for res in result:
         tweets.append(res["text"])
     return tweets
+
+# 获取某一类别的用户
+def getUsersByCategory(category,cursor):
+    cursor.execute("select * from PreStandardUsers where category = %s" % category)
+    data = cursor.fetchall()
+    for d in data:
+        twitter_user = TwitterUsers.User(d[3],d[1],d[0],d[4],d[7],d[9],d[8],d[10],d[14])
+        user.append(twitter_user)
+    return user
 
 # split Origin and RT
 def CalucateParameters(tweets):
