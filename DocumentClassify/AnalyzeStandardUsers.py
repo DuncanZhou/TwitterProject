@@ -39,7 +39,7 @@ class Famous:
 # 获取用户
 def getStandardUsers(cursor):
     users = []
-    cursor.execute("SELECT * FROM StandardUsers")
+    cursor.execute("SELECT * FROM StandardUsers limit 10")
     data = cursor.fetchall()
     for d in data:
         user = TwitterUsers.User(d[3],d[1],d[0],d[4],d[7],d[9],d[8],d[10],d[14])
@@ -75,9 +75,13 @@ def GetClassifyResultsByAllTweets(tweets_path):
 def GetClassifyResultsByTF(users_id,tweet_mongo):
     twitter_stop_words = ["@","from","TO","to",":","!",".","#","https","RT","URL","in","&",";","re","''","?","thank","thanks","do","be","today","yesterday","tomorrow","night","tonight","day","year","last","oh","yeah"]
 
+    # 返回四种分类器的结果
+    results = []
     MultinomialNB_resdic = {}
     LinearSVM_resdic = {}
     BernoulliNB_resdic = {}
+    GaussianNB_resdic = {}
+
     # 从mongodb中根据user_id读取推文
     for id in users_id:
         tweets = tweet_mongo.find({'user_id':long(id)})
@@ -104,9 +108,18 @@ def GetClassifyResultsByTF(users_id,tweet_mongo):
         # text = " ".join(lastwords)
         text = " ".join(wordlist)
         MultinomialNB_res = TweetsClassify.Classify(text,"MultinomialNB")
+        LinearSVM_res = TweetsClassify.Classify(text,"LinearSVM")
+        BernoulliNB_res = TweetsClassify.Classify(text,"BernoulliNB")
+        GaussianNB_res = TweetsClassify.Classify(text,"GaussianNB")
         MultinomialNB_resdic[id] = MultinomialNB_res
-        print id + " ==> " + MultinomialNB_res
-    return MultinomialNB_resdic
+        LinearSVM_resdic[id] = LinearSVM_res
+        BernoulliNB_resdic[id] = BernoulliNB_res
+        GaussianNB_resdic[id] = GaussianNB_res
+    results.append(MultinomialNB_resdic)
+    results.append(LinearSVM_resdic)
+    results.append(BernoulliNB_resdic)
+    results.append(GaussianNB_resdic)
+    return results
 
 # 从mysql中查询用户的分类形成字典返回
 def GetCategoryById(users_id,cursor):
@@ -119,6 +132,9 @@ def GetCategoryById(users_id,cursor):
     return category_dic
 
 if __name__ == '__main__':
+
+    # 分类器类型
+    Classifiers = ['MultinomialNB','LinearSVM','BernoulliNB','GaussianNB']
     start = time.time()
     conn = MySQLdb.connect(
         host='localhost',
@@ -185,27 +201,30 @@ if __name__ == '__main__':
     #     print "使用DataSet%d分类结果:共%d个名人,分类准确率为%f" % (i,len(resdic),accuracy)
     #     print "-------------------------------------------------------------------------------------------"
     data_set_path = "/DocumentClassify/DataSet2"
-    TweetsClassifyTraining.Training(data_set_path)
+    # 已经训练好了模型则不需要再训练
+    # TweetsClassifyTraining.Training(data_set_path)
 
     #------------------------------------------------进行测试--------------------------------
     # 以去除回复性推文作为输入
     # resdic =  GetClassifyResultsByAllTweets(Famous_tweets_path)
 
     # 以词频单词作为输入
-    MultinomialNB_resdic = GetClassifyResultsByTF(StandardUsers_id,tweet)
+    results = GetClassifyResultsByTF(StandardUsers_id,tweet)
 
     # 将resdic分类结果写入文件
-    with open("/home/duncan/DataSet%d-Results" % 2,"w") as f:
-        for key in MultinomialNB_resdic.keys():
-            for user in StandardUsers:
-                if user.id == key:
-                    f.write(user.name + "  ==>  " + "分类器分类结果: " + MultinomialNB_resdic[key] + "  ==>  " + "正确结果: " + user.category)
-                    f.write("\n")
-                    break
+    for (res,classifier) in zip(results,Classifiers):
+        # res是每个分类器的结果字典
+        with open("/home/duncan/%s-Results" % classifier,"w") as f:
+            for key in res.keys():
+                for user in StandardUsers:
+                    if user.id == key:
+                        f.write(user.id + "  ==>  " + "分类器分类结果: " + res[key] + "  ==>  " + "正确结果: " + user.category)
+                        f.write("\n")
+                        break
     #------------------------------------------------计算分类精度--------------------------------
-    category_dic = GetCategoryById(StandardUsers_id,cursor)
-    accuracy = TweetsClassify.Accuracy(MultinomialNB_resdic,category_dic)
-    print "使用DataSet%d分类结果,多项式贝叶斯分类器:共%d个名人,分类准确率为%f" % (2,len(MultinomialNB_resdic),accuracy)
+        category_dic = GetCategoryById(StandardUsers_id,cursor)
+        accuracy = TweetsClassify.Accuracy(res,category_dic)
+        print "分类结果:%s分类器:共%d个名人,分类准确率为%f" % (classifier,len(res),accuracy)
     print "-------------------------------------------------------------------------------------------"
 
     # accuracy = TweetsClassify.Accuracy(BernoulliNB_resdic,users)
