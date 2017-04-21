@@ -11,6 +11,7 @@ import xlrd
 import TweetsClassify
 import TweetsClassifyTraining
 import os
+import sys
 from nltk.corpus import stopwords
 from nltk import word_tokenize
 
@@ -39,7 +40,7 @@ class Famous:
 # 获取用户
 def getStandardUsers(cursor):
     users = []
-    cursor.execute("SELECT * FROM StandardUsers limit 20")
+    cursor.execute("SELECT * FROM StandardUsers")
     data = cursor.fetchall()
     for d in data:
         user = TwitterUsers.User(d[3],d[1],d[0],d[4],d[7],d[9],d[8],d[10],d[14])
@@ -80,7 +81,7 @@ def GetClassifyResultsByTF(users_id,tweet_mongo):
     weight = [0.4,0.3,0.1,0.1,0.1]
     results = []
     multiclassifier_result = {}
-    # MultinomialNB_resdic = {}
+    MultinomialNB_resdic = {}
     # LinearSVM_resdic = {}
     # RandomForest_resdic = {}
     # SGD_resdic = {}
@@ -114,13 +115,13 @@ def GetClassifyResultsByTF(users_id,tweet_mongo):
 
 
         # 单模型
-    #     MultinomialNB_res = TweetsClassify.Classify(text,"MultinomialNB")
+        MultinomialNB_res = TweetsClassify.Classify(text,"MultinomialNB")
     #     LinearSVM_res = TweetsClassify.Classify(text,"LinearSVM")
     #     RandomForest_res = TweetsClassify.Classify(text,"RandomForest")
     #     SGD_res = TweetsClassify.Classify(text,"SGD")
     #     ExtraTree_res = TweetsClassify.Classify(text,"ExtraTree")
     #
-    #     MultinomialNB_resdic[id] = MultinomialNB_res
+        MultinomialNB_resdic[id] = MultinomialNB_res
     #     LinearSVM_resdic[id] = LinearSVM_res
     #     RandomForest_resdic[id] = RandomForest_res
     #     SGD_resdic[id] = SGD_res
@@ -134,7 +135,7 @@ def GetClassifyResultsByTF(users_id,tweet_mongo):
         # 多模型融合
         result = TweetsClassify.Classify_MultiModels(text,Classifiers,weight)
         multiclassifier_result[id] = result
-    return multiclassifier_result
+    return multiclassifier_result,MultinomialNB_resdic
 
 # 从mysql中查询用户的分类形成字典返回
 def GetCategoryById(users_id,cursor):
@@ -176,9 +177,21 @@ if __name__ == '__main__':
     # 获取标准人物样本库中的用户
     StandardUsers = getStandardUsers(cursor)
     # 将用户的id保存
+
+
     StandardUsers_id = []
+    no_tweets_id = []
+    # i = 0
     for user in StandardUsers:
         StandardUsers_id.append(user.id)
+        # tweets = tweet.find({'user_id':long(user.id)})
+    #     i += 1
+    #     print i
+    #     text = ""
+    #     for t in tweets:
+    #         text += t['text']
+    # print no_tweets_id
+    # sys.exit(0)
 
 #------------------------------------------------选择训练集训练--------------------------------
     '''
@@ -250,17 +263,29 @@ if __name__ == '__main__':
 
     # 多模型融合分类
     # ---------------------------------------------------------------------------------------------------------
-    results = GetClassifyResultsByTF(StandardUsers_id,tweet)
-    # 将结果写入文件
-    with open("/home/duncan/MultiClassifier-results",'w') as f:
-        for key in results.keys():
+    MultiModels_results,Multinomial_results = GetClassifyResultsByTF(StandardUsers_id,tweet)
+
+    # 将多项式分类器分类结果写入文件
+    with open("/home/duncan/Multinomial_NB_Classifier-results",'w') as f:
+        for key in Multinomial_results.keys():
             for user in StandardUsers:
                 if user.id == key:
-                    f.write(user.id + "  ==>  " + "分类器分类结果: " + results[key] + "  ==>  " + "正确结果: " + user.category)
+                    f.write(user.id + "  ==>  " + "分类器分类结果: " + Multinomial_results[key] + "  ==>  " + "正确结果: " + user.category)
                     f.write("\n")
                     break
-    accuracy = TweetsClassify.Accuracy(results,category_dic)
-    print "分类结果:分类器融合:共%d个名人,分类准确率为%f" % (len(results),accuracy)
+    accuracy = TweetsClassify.Accuracy(Multinomial_results,category_dic)
+    print "分类结果:多项式贝叶斯分类器:共%d个名人,分类准确率为%f" % (len(Multinomial_results),accuracy)
+
+    # 多分类器融合结果写入文件
+    with open("/home/duncan/MultiClassifier-results",'w') as f:
+        for key in MultiModels_results.keys():
+            for user in StandardUsers:
+                if user.id == key:
+                    f.write(user.id + "  ==>  " + "分类器分类结果: " + MultiModels_results[key] + "  ==>  " + "正确结果: " + user.category)
+                    f.write("\n")
+                    break
+    accuracy = TweetsClassify.Accuracy(MultiModels_results,category_dic)
+    print "分类结果:分类器融合:共%d个名人,分类准确率为%f" % (len(MultiModels_results),accuracy)
     # ---------------------------------------------------------------------------------------------------------
     print "-------------------------------------------------------------------------------------------"
 
