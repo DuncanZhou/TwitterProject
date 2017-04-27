@@ -18,7 +18,7 @@ BeatFactor = 3000000
 
 project_path = os.path.abspath("..")
 project_folder_path = os.path.abspath(".." + os.path.sep + "..")
-twitter_stop_words = ["@","from","TO","to",":","!",".","#","https","RT","URL","in","&",";","re","''","?","thank","thanks","do","be","today","yesterday","tomorrow","night","tonight","day","year","last","oh","yeah"]
+twitter_stop_words = ["from","TO","to","https","RT","URL","in","re","thank","thanks","today","yesterday","tomorrow","night","tonight","day","year","last","oh","yeah","amp"]
 followers_file_path = project_folder_path + "/TweetsSamples/"
 target_tweets_path = project_folder_path + "/TweetsSamples/"
 
@@ -149,7 +149,7 @@ def getUserTopInterest(path,screen_name):
         lines = f.readlines()
         for line in lines:
             # 移除回复/对话的推文 （是以@XXXX开头）
-            if re.match(r"^@[\w|_]+",line) == None:
+            if re.match(r"""^["|.]?@[\w|_]+""",line) == None:
                 line.replace("\n","")
                 # print "user tweet id is %d" % user_tweet_id
                 res = Generation(PreProcess(line.decode("utf-8")))
@@ -272,18 +272,18 @@ def CalucateUCTR(usercandidate,ucTRMatrix):
 def ProcessBio(user_name):
     pass
 
-def GenerateTargetUserInterest(Target_name):
+def GenerateTargetUserInterest(Target_name,path,followers_path):
     # 初始矩阵设为权值都为1的矩阵
     TR = [1 for i in range(50)]
     InitTRMatrix = mat(TR)
 
     target_user_name = Target_name
     steponetime = time.time()
-    target_user_candidate = getUserTopInterest(target_tweets_path,target_user_name)
+    target_user_candidate = getUserTopInterest(path,target_user_name)
     steptwotime = time.time()
     print "第一步计算用户兴趣候选集,用时 %f s" % (steptwotime - steponetime)
     print "正在计算TFIDF,大约需要几分钟"
-    idf = CalculateTFIDF(target_user_candidate,followers_file_path)
+    idf = CalculateTFIDF(target_user_candidate,followers_path)
     print "第二步计算用户TFIDF特征,用时 %f s" % (time.time() - steptwotime)
     print "开始TextRank迭代计算用户兴趣候选集排序,计算中"
     trstarttime = time.time()
@@ -304,11 +304,30 @@ def GenerateTagCloud(InterestSorted,name):
     create_tag_image(tags, name + 'tags.png', size=(700, 600), fontname='Nobile')
     webbrowser.open(name + 'tags.png') # see results
 
-if __name__ == "__main__":
-    name = "taylorswift13"
-    Interest10,Interest50 = GenerateTargetUserInterest(name)
-    print Interest10
-    GenerateTagCloud(Interest50,name)
+
+# 对外接口,返回该用户前10个兴趣标签
+def GenerateInterestsWithFollowers(screen_name,path=target_tweets_path,followers_path=followers_file_path):
+    '''
+    :param path: 该用户推文路径
+    :param screen_name: 该用户screen_name
+    :param followers_path: 该用户粉丝们的推文路径
+    :return:
+    '''
+    Interest10,Interest50 = GenerateTargetUserInterest(screen_name,path,followers_path)
+    # 将50个兴趣标签生成TagCloud
+    GenerateTagCloud(Interest50,screen_name)
+    return Interest10
+
+# 对外接口,返回该用户前10个兴趣标签,但不在粉丝中TextRank排序
+def GenerateInterestsWithTF(screen_name,path=target_tweets_path):
+    '''
+    :param path: 该用户推文路径
+    :param screen_name: 该用户screen_name
+    :param followers_path: 该用户粉丝们的推文路径
+    :return:
+    '''
+    Interest10 = getUserTopInterest(path,screen_name)[:10]
+    return Interest10
 
 
 
