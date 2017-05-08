@@ -6,8 +6,10 @@ import time
 import sys
 sys.path.append("..")
 from MongoDBInteraction import TweetsWithMongo as mongo
+
 # 从mongodb中读出的日期是 "Fri Dec 16 04:22:58 +0000 2016"
 import datetime
+import SentimentAnalyze as Senti
 
 months = {'Jan':'1','Feb':'2','Mar':'3','Apr':'4','May':'5','Jun':'6','Jul':'7','Aug':'8','Sep':'9','Oct':'10','Nov':'11','Dec':'12'}
 # 将字符串格式转换成可以转换成datetime的字符串格式
@@ -88,6 +90,25 @@ def getTweetsBy2Months(userid,period):
     print "推文数%d条" % count
     return starttime,period_tweets
 
-if __name__ == '__main__':
-    # getTimeSequence('318385857')
-    starttime,period_tweets = getTweetsBy2Months('318385857',2)
+# 对外接口
+# 加入时间后的推文情感分类
+def SentimentWithTime(userid,period):
+    '''
+
+    :param userid:用户id
+    :param period: 时间间隔的月数
+    :return:返回最开始推文起始时间和每个周期的心理状态以及置信度
+    '''
+    starttime,period_tweets = getTweetsBy2Months(userid,period)
+    psychologic = []
+    pos = 0
+    for tweet in period_tweets:
+        res,confidence = Senti.sentiment(tweet)
+        if res == 'pos':
+            pos += 1
+        psychologic.append((res,confidence))
+    if pos * 1.0 / len(period_tweets) > 0.5:
+        print "总体上该用户是正向情绪"
+    else:
+        print "总体上该用户是负面情绪"
+    return starttime,psychologic
