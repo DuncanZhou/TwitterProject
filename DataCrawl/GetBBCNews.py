@@ -13,14 +13,16 @@ Agriculture     Religion       Education       Military
 通过搜索关键字搜索得到结果页,每页有10个链接,有可能有坏的链接,所以大约请求60个搜索页面,假设返回600个链接
 在结果页面中取标题和新闻内容
 '''
-categories = ["Agriculture","Religion","Education","Military"]
+# categories = ["Agriculture","Religion","Education","Military"]
+categories = ["Religion","Education","Military"]
 # 搜索页面终止条件,返回的页面为空
 # 搜索页面样例:http://www.bbc.co.uk/search/more?page=5&q=Religion&sa_f=search-product--suggest
+# http://www.bbc.co.uk/search/more?page=2&q=military&filter=news
 
 News_DataSet_path = "/home/duncan/BBC_News_Crawl/"
 # 生成各分类的搜索页面链接
 def GenerateUrls():
-    search_url = "http://www.bbc.co.uk/search/more?page=PAGE&q=CATEGORY&sa_f=search-product--suggest"
+    search_url = "http://www.bbc.co.uk/search/more?page=PAGE&q=CATEGORY&filter=news"
     category_urls = {}
     for category in categories:
         urls = []
@@ -48,20 +50,29 @@ def GetPageUrls(url):
 def GetPageText(url):
     if "news" in url.split("/") == False:
         return None
-    html = urllib2.urlopen(url).read()
-    soup = BeautifulSoup(html,"lxml")
-    # 定位到文章主内容区
-    story_body = soup.find_all(attrs={"class":"story-body__inner"})
-    text = ""
-    for res in story_body:
-        # 取p标签里的内容
-        story = res.find_all("p")
-        for s in story:
-            if s.string != None:
-                text += s.string + "\n"
-    if text == "":
+    try:
+        html = urllib2.urlopen(url).read()
+        soup = BeautifulSoup(html,"lxml")
+        # 获取文章标题
+        title = ""
+        titles = soup.find_all("h1")
+        for t in titles:
+            if t.string != None:
+                title +=  t.string.encode("utf-8")
+        # 定位到文章主内容区
+        story_body = soup.find_all(attrs={"class":"story-body__inner"})
+        text = title + "\n"
+        for res in story_body:
+            # 取p标签里的内容
+            story = res.find_all("p")
+            for s in story:
+                if s.string != None:
+                    text += s.string.encode("utf-8") + "\n"
+        if text == "":
+            return None
+        print "已获取一个页面"
+    except Exception as e:
         return None
-    print "已获取一个页面"
     return text
 
 if __name__ == '__main__':
@@ -79,7 +90,7 @@ if __name__ == '__main__':
                 page_urls += res
         # 每个分类对应的结果页面的链接
         Page_Text_urls[category] = page_urls
-        print "获取%s分类的结果页面链接" % category
+        print "获取%s分类的结果页面链接,共%d条" % (category,len(page_urls))
     print "结果页面链接生成成功"
     # 将结果页面的链接存储
     with open("BBC_Page_urls","w") as f:

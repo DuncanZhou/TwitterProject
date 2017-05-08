@@ -123,23 +123,28 @@ class CNNNewsSpider():
 if __name__ == '__main__':
     starttime = time.time()
     spider = CNNNewsSpider()
-    # pageurl = spider.generatePageUrls()
-    # categoryUrl = spider.generateCategoryUrls(pageurl)
-    # spider.DownloadText(categoryUrl)
+    pageurl = spider.generatePageUrls()
+    categoryUrl = spider.generateCategoryUrls(pageurl)
+    spider.DownloadText(categoryUrl)
 
     # test getting text
-    with open("/home/duncan/CNNNewsDataSet/religiontexturls","r") as f:
-        urls = f.readlines()
-        id = 1
-        for url in urls:
-            text = spider.DownloadOnePageText(url)
-            if text == "":
-                continue
-            # 写入文件
-            with open("/home/duncan/CNNNewsDataSet/religionText/" + str(id),"w") as f:
-                f.write(text.encode("utf-8"))
-            id += 1
-            print "已写入%d个文本" % id
+    # 作为该项目用的训练集，一个分类有2000多个文本应该差不多可以用了，所以每个分类就抓取2000个文本
+    # with open("/home/duncan/CNNNewsDataSet/agriculturetexturls","r") as f:
+    #     urls = f.readlines()
+    #     id = 1
+    #     for url in urls:
+    #         url = url.replace("\n","")
+    #         text = spider.DownloadOnePageText(url.replace("\n",""))
+    #         if text == "":
+    #             continue
+    #         # 写入文件
+    #         with open("/home/duncan/CNNNewsDataSet/agricultureText/" + str(id),"w") as f:
+    #             f.write(text.encode("utf-8"))
+    #         print "已写入%d个文本" % id
+    #         id += 1
+    #         if id == 2000:
+    #             break
+
     endtime = time.time()
     print "cost %f s" % (endtime - starttime)
 

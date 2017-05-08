@@ -135,8 +135,16 @@ def Generation(pos):
 def CalculateTF(usercandidate):
     vac = set(usercandidate)
     vacdic = {}
+    # 得到词频
     for phase in vac:
         vacdic[phase] = usercandidate.count(phase)
+    sum = 0
+    for key in vacdic.keys():
+        sum += vacdic[key]
+    # 计算TF值
+    for key in vacdic.keys():
+        vacdic[key] = vacdic[key] * 1.0 / sum
+        
     # 按照键值排序
     vacdic = sorted(vacdic.items(),key = lambda dic:dic[1],reverse = True)
     # 输出前100个兴趣候选集
