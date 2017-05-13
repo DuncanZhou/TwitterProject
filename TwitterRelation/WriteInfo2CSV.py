@@ -35,8 +35,20 @@ def Write2CSV(users,path):
         writer.writerows(twitter_users)
         csvfile.close()
 
+# 对外接口
+def WriteUsers2CSV(table,path):
+    '''
+
+    :param table: 表名
+    :param path: 写入文件路径
+    :return:
+    '''
+    users = getUsers(table)
+    Write2CSV(users,path)
+
 if __name__ == '__main__':
-    Write2CSV(getUsers('StandardUsers'),'/home/duncan/users.csv')
+    # Write2CSV(getUsers('StandardUsers'),'/home/duncan/users.csv')
+    WriteUsers2CSV('StandardUsers','/home/duncan/users.csv')
 
 
 
